@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
 import { EntryForm } from './components/EntryForm';
+import { DesignAssistant } from './components/DesignAssistant';
 import { DailyLog, AppView } from './types';
 import { Icons } from './constants';
 
@@ -115,21 +116,21 @@ const App: React.FC = () => {
 
   const HistoryView = () => (
     <div className="space-y-4 animate-slide-in pb-20">
-      <h1 className="text-3xl font-bold text-white mb-6">历史记录</h1>
+      <h1 className="text-3xl font-bold text-primary mb-6">历史记录</h1>
       {[...logs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((log, idx) => (
-        <div key={log.id} className="bg-ios-cardHigh rounded-xl p-4 flex justify-between items-center active:bg-[#3a3a3c] transition-colors cursor-pointer border-b border-ios-separator last:border-0">
+        <div key={log.id} className="glass-card p-4 flex justify-between items-center active:opacity-90 transition-colors cursor-pointer">
           <div className="flex items-center gap-4">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white ${log.category === 'Meat' ? 'bg-red-500' : log.category === 'Vegetables' ? 'bg-green-500' : 'bg-gray-600'}`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white ${log.category === 'Meat' ? 'bg-stamp-red' : log.category === 'Vegetables' ? 'bg-faded-steel' : 'bg-harbor-blue'}`}>
                <span className="text-xs font-bold">{getCategoryLabel(log.category).substring(0,2)}</span>
             </div>
             <div>
-              <h3 className="text-white font-medium">{log.supplier}</h3>
-              <p className="text-sm text-gray-500">{new Date(log.date).toLocaleDateString('zh-CN')}</p>
+              <h3 className="text-primary font-medium">{log.supplier}</h3>
+              <p className="text-sm text-secondary">{new Date(log.date).toLocaleDateString('zh-CN')}</p>
             </div>
           </div>
           <div className="text-right">
-              <p className="text-white font-bold">¥{log.totalCost.toFixed(2)}</p>
-              <p className="text-xs text-gray-500">{log.items.length} 物品</p>
+              <p className="text-harbor-blue font-bold">¥{log.totalCost.toFixed(2)}</p>
+              <p className="text-xs text-muted">{log.items.length} 物品</p>
           </div>
         </div>
       ))}
@@ -137,29 +138,30 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="fixed inset-0 flex bg-black text-white font-sans overflow-hidden">
-      <Sidebar 
-        currentView={currentView} 
-        onChangeView={setCurrentView} 
+    <div className="fixed inset-0 flex text-primary font-sans overflow-hidden">
+      <Sidebar
+        currentView={currentView}
+        onChangeView={setCurrentView}
         isOpen={sidebarOpen}
         toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
       />
 
-      <div className="flex-1 flex flex-col h-full relative w-full bg-black">
-        {/* Mobile Header Button */}
+      <div className="flex-1 flex flex-col h-full relative w-full">
+        {/* Mobile Header Button - Storm Glass */}
         {currentView !== AppView.NEW_ENTRY && (
           <div className="md:hidden pt-6 px-4 pb-2 flex items-center justify-between">
-             <span className="text-xl font-bold">门店管家</span>
-             <button onClick={() => setSidebarOpen(true)} className="p-2 text-ios-blue">
+             <span className="text-xl font-bold text-white">门店管家</span>
+             <button onClick={() => setSidebarOpen(true)} className="p-2 text-white/70 hover:text-white">
                <Icons.Menu className="w-6 h-6" />
              </button>
           </div>
         )}
 
-        <main className={`flex-1 overflow-y-auto ${currentView === AppView.NEW_ENTRY ? 'p-0' : 'p-4 md:p-8'} max-w-5xl mx-auto w-full`}>
+        <main className={`flex-1 overflow-y-auto ${(currentView === AppView.NEW_ENTRY || currentView === AppView.DESIGN_ASSISTANT) ? 'p-0' : 'p-4 md:p-8'} max-w-5xl mx-auto w-full`}>
             {currentView === AppView.DASHBOARD && <Dashboard logs={logs} />}
             {currentView === AppView.NEW_ENTRY && <EntryForm onSave={handleSaveEntry} userName={CURRENT_USER_NAME} />}
             {currentView === AppView.HISTORY && <HistoryView />}
+            {currentView === AppView.DESIGN_ASSISTANT && <DesignAssistant />}
         </main>
       </div>
     </div>

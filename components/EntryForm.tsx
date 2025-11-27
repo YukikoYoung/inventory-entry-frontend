@@ -1,8 +1,14 @@
 
+// EntryForm - 采购录入表单
+// v1.5 - 重构语音 UI：移除浮动弹窗，集成到底部 bar，添加发光边框动画
+// v1.4 - 修复语音录入 WebSocket 自动关闭问题，支持连续录音
+// v1.3 - 清除 Mock 数据预填充，添加灰色占位符文本，添加语音录入实时转录
+
 import React, { useState, useRef, useEffect } from 'react';
 import { DailyLog, ProcurementItem, CategoryType, AttachedImage } from '../types';
 import { parseDailyReport } from '../services/geminiService';
 import { compressImage, generateThumbnail, formatFileSize } from '../services/imageService';
+import { voiceEntryService, RecordingStatus, VoiceEntryResult } from '../services/voiceEntryService';
 import { Icons } from '../constants';
 import { GlassCard, Button, Input } from './ui';
 
@@ -200,6 +206,10 @@ const WorksheetScreen: React.FC<{
   isAnalyzing: boolean;
   grandTotal: number;
   attachedImages: AttachedImage[];
+  voiceStatus: RecordingStatus;
+  voiceMessage: string;
+  transcriptionText: string;
+  showTranscription: boolean;
   onBack: () => void;
   onSupplierChange: (val: string) => void;
   onNotesChange: (val: string) => void;
@@ -208,10 +218,13 @@ const WorksheetScreen: React.FC<{
   onRemoveItem: (index: number) => void;
   onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveImage: (id: string) => void;
+  onVoiceStart: () => void;
+  onVoiceStop: () => void;
   onReview: () => void;
 }> = ({
   items, supplier, notes, isAnalyzing, grandTotal, attachedImages,
-  onBack, onSupplierChange, onNotesChange, onItemChange, onAddItem, onRemoveItem, onImageUpload, onRemoveImage, onReview
+  voiceStatus, voiceMessage, transcriptionText, showTranscription,
+  onBack, onSupplierChange, onNotesChange, onItemChange, onAddItem, onRemoveItem, onImageUpload, onRemoveImage, onVoiceStart, onVoiceStop, onReview
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -255,7 +268,7 @@ const WorksheetScreen: React.FC<{
             label="供应商全称"
             value={supplier}
             onChange={(e) => onSupplierChange(e.target.value)}
-            placeholder="请输入..."
+            placeholder="供应商名称"
           />
           <div>
              <label className="block text-[20px] tracking-wider text-zinc-500 font-bold mb-2 ml-1">
@@ -264,7 +277,7 @@ const WorksheetScreen: React.FC<{
              <textarea
                 value={notes}
                 onChange={(e) => onNotesChange(e.target.value)}
-                placeholder="可选..."
+                placeholder="备注信息（可选）"
                 rows={1}
                 className="glass-input w-full resize-none py-4 leading-normal"
              />
@@ -335,7 +348,7 @@ const WorksheetScreen: React.FC<{
                  <div className="flex items-start justify-between mb-4">
                     <input
                       type="text"
-                      placeholder="输入品名"
+                      placeholder="商品名称"
                       value={item.name}
                       onChange={(e) => onItemChange(index, 'name', e.target.value)}
                       className="flex-1 bg-transparent text-[13px] font-bold text-primary placeholder-muted outline-none"
@@ -356,7 +369,8 @@ const WorksheetScreen: React.FC<{
                             type="text"
                             value={item.specification || ''}
                             onChange={(e) => onItemChange(index, 'specification', e.target.value)}
-                            className="w-full bg-cacao-husk/60 border border-[rgba(138,75,47,0.3)] rounded-glass-sm py-2 text-center text-sm text-secondary outline-none focus:border-ember-rock/50"
+                            placeholder="规格/包装"
+                            className="w-full bg-cacao-husk/60 border border-[rgba(138,75,47,0.3)] rounded-glass-sm py-2 text-center text-sm text-secondary outline-none focus:border-ember-rock/50 placeholder:text-white/40"
                         />
                     </div>
                     {/* Unit */}
@@ -366,7 +380,8 @@ const WorksheetScreen: React.FC<{
                             type="text"
                             value={item.unit}
                             onChange={(e) => onItemChange(index, 'unit', e.target.value)}
-                            className="w-full bg-cacao-husk/60 border border-[rgba(138,75,47,0.3)] rounded-glass-sm py-2 text-center text-sm text-secondary outline-none focus:border-ember-rock/50"
+                            placeholder="单位"
+                            className="w-full bg-cacao-husk/60 border border-[rgba(138,75,47,0.3)] rounded-glass-sm py-2 text-center text-sm text-secondary outline-none focus:border-ember-rock/50 placeholder:text-white/40"
                         />
                     </div>
                     {/* Qty */}
@@ -376,7 +391,8 @@ const WorksheetScreen: React.FC<{
                             type="number"
                             value={item.quantity || ''}
                             onChange={(e) => onItemChange(index, 'quantity', e.target.value)}
-                            className="w-full bg-cacao-husk/60 border border-[rgba(138,75,47,0.3)] rounded-glass-sm py-2 text-center text-sm text-primary font-medium outline-none focus:border-ember-rock/50"
+                            placeholder="数量"
+                            className="w-full bg-cacao-husk/60 border border-[rgba(138,75,47,0.3)] rounded-glass-sm py-2 text-center text-sm text-primary font-medium outline-none focus:border-ember-rock/50 placeholder:text-white/40"
                         />
                     </div>
                     {/* Price */}
@@ -386,7 +402,8 @@ const WorksheetScreen: React.FC<{
                             type="number"
                             value={item.unitPrice || ''}
                             onChange={(e) => onItemChange(index, 'unitPrice', e.target.value)}
-                            className="w-full bg-cacao-husk/60 border border-[rgba(138,75,47,0.3)] rounded-glass-sm py-2 text-center text-sm text-primary font-medium outline-none focus:border-ember-rock/50"
+                            placeholder="单价"
+                            className="w-full bg-cacao-husk/60 border border-[rgba(138,75,47,0.3)] rounded-glass-sm py-2 text-center text-sm text-primary font-medium outline-none focus:border-ember-rock/50 placeholder:text-white/40"
                         />
                     </div>
                     {/* Subtotal */}
@@ -412,16 +429,18 @@ const WorksheetScreen: React.FC<{
         </div>
       </div>
 
-      {/* Floating Action Island - Storm Glass */}
+      {/* Floating Action Island - Storm Glass with Integrated Voice Display */}
       <div className="fixed bottom-6 left-4 right-4 z-50 safe-area-bottom">
-        <div className="p-2 flex items-center justify-between rounded-2xl border border-white/10"
+        <div className="p-2 rounded-2xl border border-white/10"
              style={{
                background: 'rgba(30, 30, 35, 0.75)',
                backdropFilter: 'blur(40px) saturate(180%)',
                WebkitBackdropFilter: 'blur(40px) saturate(180%)',
                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
              }}>
-           <div className="flex items-center gap-1 pl-1">
+
+           {/* Main Row: Icons + Text Box + Submit */}
+           <div className="flex items-center gap-2">
              {/* Hidden Inputs */}
              <input
                 type="file"
@@ -440,36 +459,98 @@ const WorksheetScreen: React.FC<{
                 className="hidden"
               />
 
-             {/* Camera Button */}
-             <button
-               onClick={() => cameraInputRef.current?.click()}
-               disabled={isAnalyzing}
-               className="w-12 h-12 rounded-xl flex items-center justify-center text-white/60 hover:bg-white/10 hover:text-white transition-colors active:scale-95"
-             >
-               {isAnalyzing ? <div className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full"></div> : <Icons.Camera className="w-6 h-6" />}
-             </button>
+             {/* Left Icons Group */}
+             <div className="flex items-center gap-0.5">
+               {/* Camera Button */}
+               <button
+                 onClick={() => cameraInputRef.current?.click()}
+                 disabled={isAnalyzing || voiceStatus === 'recording'}
+                 className="w-11 h-11 rounded-xl flex items-center justify-center text-white/60 hover:bg-white/10 hover:text-white transition-colors active:scale-95 disabled:opacity-40"
+               >
+                 {isAnalyzing ? <div className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full"></div> : <Icons.Camera className="w-5 h-5" />}
+               </button>
 
-             {/* File Upload Button */}
-             <button
-               onClick={() => fileInputRef.current?.click()}
-               disabled={isAnalyzing}
-               className="w-12 h-12 rounded-xl flex items-center justify-center text-white/60 hover:bg-white/10 hover:text-white transition-colors active:scale-95"
+               {/* File Upload Button */}
+               <button
+                 onClick={() => fileInputRef.current?.click()}
+                 disabled={isAnalyzing || voiceStatus === 'recording'}
+                 className="w-11 h-11 rounded-xl flex items-center justify-center text-white/60 hover:bg-white/10 hover:text-white transition-colors active:scale-95 disabled:opacity-40"
+               >
+                 <Icons.Folder className="w-5 h-5" />
+               </button>
+
+               {/* Voice Recording Button - Start or Stop */}
+               {voiceStatus === 'recording' ? (
+                 /* Stop Button - Red circle with white square SVG */
+                 <button
+                   onClick={onVoiceStop}
+                   className="w-11 h-11 rounded-xl flex items-center justify-center transition-all active:scale-95"
+                 >
+                   <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                     <circle cx="14" cy="14" r="13" stroke="#ef4444" strokeWidth="2" className="animate-pulse" style={{ filter: 'drop-shadow(0 0 6px rgba(239, 68, 68, 0.6))' }} />
+                     <rect x="9" y="9" width="10" height="10" rx="1.5" fill="white" />
+                   </svg>
+                 </button>
+               ) : (
+                 /* Microphone Button */
+                 <button
+                   onClick={onVoiceStart}
+                   disabled={isAnalyzing || voiceStatus === 'processing'}
+                   className="w-11 h-11 rounded-xl flex items-center justify-center text-white/60 hover:bg-white/10 hover:text-white transition-colors active:scale-95 disabled:opacity-40"
+                 >
+                   {voiceStatus === 'processing' ? (
+                     <div className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full" />
+                   ) : (
+                     <Icons.Microphone className="w-5 h-5" />
+                   )}
+                 </button>
+               )}
+             </div>
+
+             {/* Voice Text Display Box - Integrated in Bottom Bar */}
+             <div
+               className={`flex-1 h-11 rounded-xl px-3 flex items-center overflow-hidden transition-all duration-300 ${
+                 voiceStatus === 'recording'
+                   ? 'voice-recording-border'
+                   : 'border border-transparent'
+               }`}
+               style={{
+                 background: voiceStatus === 'recording' || transcriptionText
+                   ? 'rgba(255, 255, 255, 0.08)'
+                   : 'transparent',
+               }}
              >
-               <Icons.Folder className="w-6 h-6" />
+               {transcriptionText ? (
+                 <p className="text-white/90 text-sm truncate">
+                   {transcriptionText}
+                   {voiceStatus === 'recording' && (
+                     <span className="inline-block w-0.5 h-4 bg-cyan-400 ml-1 animate-pulse" />
+                   )}
+                 </p>
+               ) : voiceStatus === 'recording' ? (
+                 <p className="text-white/50 text-sm flex items-center gap-2">
+                   <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                   正在聆听...
+                 </p>
+               ) : voiceStatus === 'processing' ? (
+                 <p className="text-white/50 text-sm">正在处理...</p>
+               ) : null}
+             </div>
+
+             {/* Submit Button */}
+             <button
+               onClick={onReview}
+               disabled={voiceStatus === 'recording' || voiceStatus === 'processing'}
+               className="px-5 py-2.5 rounded-xl text-white font-semibold text-sm transition-all active:scale-[0.98] border border-white/10 disabled:opacity-40 whitespace-nowrap"
+               style={{
+                 background: 'rgba(255, 255, 255, 0.15)',
+                 backdropFilter: 'blur(20px)',
+                 WebkitBackdropFilter: 'blur(20px)'
+               }}
+             >
+                确认提交
              </button>
            </div>
-
-           <button
-             onClick={onReview}
-             className="px-6 py-2.5 rounded-xl text-white font-semibold transition-all active:scale-[0.98] border border-white/10"
-             style={{
-               background: 'rgba(255, 255, 255, 0.15)',
-               backdropFilter: 'blur(20px)',
-               WebkitBackdropFilter: 'blur(20px)'
-             }}
-           >
-              确认提交
-           </button>
         </div>
       </div>
     </div>
@@ -581,21 +662,97 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onSave, userName }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [attachedImages, setAttachedImages] = useState<AttachedImage[]>([]);
 
+  // 语音录入状态
+  const [voiceStatus, setVoiceStatus] = useState<RecordingStatus>('idle');
+  const [voiceMessage, setVoiceMessage] = useState('');
+  const [transcriptionText, setTranscriptionText] = useState('');
+  const [showTranscription, setShowTranscription] = useState(false);
+
+  // 初始化语音服务回调
+  useEffect(() => {
+    voiceEntryService.setCallbacks({
+      onStatusChange: (status, message) => {
+        setVoiceStatus(status);
+        setVoiceMessage(message || '');
+
+        // 显示转录面板
+        if (status === 'recording' || status === 'processing') {
+          setShowTranscription(true);
+          if (status === 'recording') {
+            setTranscriptionText('');
+          }
+        }
+      },
+      onPartialText: (text) => {
+        console.log('[语音录入] 实时文本:', text);
+        setTranscriptionText(text);
+      },
+      onResult: (result, rawText) => {
+        console.log('[语音录入] 识别结果:', result);
+        console.log('[语音录入] 原始文本:', rawText);
+
+        // 显示完整识别文本
+        setTranscriptionText(rawText);
+
+        // 填充表单数据（修改逻辑：供应商=替换，备注=追加，物品=仅添加）
+
+        // 1. 供应商：REPLACE（替换）
+        if (result.supplier) {
+          console.log('[语音录入] 供应商替换:', result.supplier);
+          setSupplier(result.supplier);
+        }
+
+        // 2. 备注：APPEND（追加）
+        if (result.notes) {
+          setNotes(prev => {
+            if (!prev || prev.trim() === '') {
+              console.log('[语音录入] 备注设置（首次）:', result.notes);
+              return result.notes;
+            }
+            // 使用中文分号追加备注
+            const merged = `${prev}；${result.notes}`;
+            console.log('[语音录入] 备注追加:', prev, '→', merged);
+            return merged;
+          });
+        }
+
+        // 3. 物品：ADD ONLY（仅添加，不删除现有）
+        if (result.items && result.items.length > 0) {
+          setItems(prev => {
+            // 过滤掉空白占位行
+            const existingItems = prev.filter(item => item.name.trim() !== '');
+            const merged = [...existingItems, ...result.items];
+            console.log('[语音录入] 物品添加:', existingItems.length, '→', merged.length, '(新增', result.items.length, '项)');
+            return merged;
+          });
+        }
+
+        // v1.5: 立即清除文本框（结果已填入表单）
+        setShowTranscription(false);
+        setVoiceMessage('');
+        setTranscriptionText('');
+      },
+      onError: (error) => {
+        console.error('[语音录入] 错误:', error);
+        setVoiceMessage(error);
+        setTranscriptionText('识别失败');
+        // 错误信息保留 2 秒后清除
+        setTimeout(() => {
+          setShowTranscription(false);
+          setVoiceStatus('idle');
+          setVoiceMessage('');
+          setTranscriptionText('');
+        }, 2000);
+      }
+    });
+  }, []);
+
   const handleCategorySelect = (cat: CategoryType) => {
     setSelectedCategory(cat);
-    // Initialize with mock data based on category for demonstration purposes
-    const mockData = MOCK_PRESETS[cat] || { supplier: '', notes: '', items: [] };
-
-    if (mockData.items.length > 0) {
-        setSupplier(mockData.supplier);
-        setNotes(mockData.notes);
-        setItems(mockData.items);
-    } else {
-        setSupplier('');
-        setNotes('');
-        setItems([{ name: '', specification: '', quantity: 0, unit: '', unitPrice: 0, total: 0 }]);
-    }
-
+    // Initialize with empty form for production use
+    setSupplier('');
+    setNotes('');
+    setItems([{ name: '', specification: '', quantity: 0, unit: '', unitPrice: 0, total: 0 }]);
     setStep('WORKSHEET');
   };
 
@@ -690,6 +847,28 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onSave, userName }) => {
     setAttachedImages(prev => prev.filter(img => img.id !== id));
   };
 
+  // 语音录入 - 开始录音
+  const handleVoiceStart = async () => {
+    if (!voiceEntryService.isSupported()) {
+      alert('您的浏览器不支持语音录入功能');
+      return;
+    }
+
+    try {
+      await voiceEntryService.startRecording();
+    } catch (error: any) {
+      console.error('[语音录入] 启动失败:', error);
+      if (error.name === 'NotAllowedError') {
+        alert('请允许麦克风访问权限');
+      }
+    }
+  };
+
+  // 语音录入 - 停止录音
+  const handleVoiceStop = () => {
+    voiceEntryService.stopRecording();
+  };
+
   const calculateGrandTotal = () => items.reduce((acc, curr) => acc + curr.total, 0);
 
   const handleWorksheetSubmit = () => {
@@ -737,6 +916,10 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onSave, userName }) => {
           isAnalyzing={isAnalyzing}
           grandTotal={calculateGrandTotal()}
           attachedImages={attachedImages}
+          voiceStatus={voiceStatus}
+          voiceMessage={voiceMessage}
+          transcriptionText={transcriptionText}
+          showTranscription={showTranscription}
           onBack={() => setStep('CATEGORY')}
           onSupplierChange={setSupplier}
           onNotesChange={setNotes}
@@ -745,6 +928,8 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onSave, userName }) => {
           onRemoveItem={removeRow}
           onImageUpload={handleImageUpload}
           onRemoveImage={removeImage}
+          onVoiceStart={handleVoiceStart}
+          onVoiceStop={handleVoiceStop}
           onReview={handleWorksheetSubmit}
         />
       )}

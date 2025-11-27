@@ -200,14 +200,48 @@ export const Icons = {
     }, 
     React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" })),
 
-  Beaker: ({ className }: { className?: string }) => 
-    React.createElement("svg", { 
-      xmlns: "http://www.w3.org/2000/svg", 
-      viewBox: "0 0 24 24", 
-      fill: "none", 
-      strokeWidth: 2, 
-      stroke: "currentColor", 
-      className: className 
-    }, 
+  Beaker: ({ className }: { className?: string }) =>
+    React.createElement("svg", {
+      xmlns: "http://www.w3.org/2000/svg",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      strokeWidth: 2,
+      stroke: "currentColor",
+      className: className
+    },
     React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" })),
+
+  // 语音录入图标
+  Microphone: ({ className }: { className?: string }) =>
+    React.createElement("svg", {
+      xmlns: "http://www.w3.org/2000/svg",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      strokeWidth: 2,
+      stroke: "currentColor",
+      className: className
+    },
+    React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" })),
+
+  // 停止图标 (方块)
+  Stop: ({ className }: { className?: string }) =>
+    React.createElement("svg", {
+      xmlns: "http://www.w3.org/2000/svg",
+      viewBox: "0 0 24 24",
+      fill: "currentColor",
+      className: className
+    },
+    React.createElement("path", { fillRule: "evenodd", d: "M4.5 7.5a3 3 0 013-3h9a3 3 0 013 3v9a3 3 0 01-3 3h-9a3 3 0 01-3-3v-9z", clipRule: "evenodd" })),
+
+  // X 关闭图标
+  X: ({ className }: { className?: string }) =>
+    React.createElement("svg", {
+      xmlns: "http://www.w3.org/2000/svg",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      strokeWidth: 2.5,
+      stroke: "currentColor",
+      className: className
+    },
+    React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M6 18L18 6M6 6l12 12" })),
 };

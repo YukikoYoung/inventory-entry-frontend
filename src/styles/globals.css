@@ -573,6 +573,24 @@
     padding-top: env(safe-area-inset-top);
   }
 
+  /* ===== 语音录音边框动画 ===== */
+  .voice-recording-border {
+    border: 1.5px solid rgba(239, 68, 68, 0.6);
+    animation: voice-border-pulse 2s ease-in-out infinite;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.3), inset 0 0 8px rgba(239, 68, 68, 0.1);
+  }
+
+  @keyframes voice-border-pulse {
+    0%, 100% {
+      border-color: rgba(239, 68, 68, 0.4);
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.2), inset 0 0 4px rgba(239, 68, 68, 0.05);
+    }
+    50% {
+      border-color: rgba(239, 68, 68, 0.8);
+      box-shadow: 0 0 16px rgba(239, 68, 68, 0.5), inset 0 0 10px rgba(239, 68, 68, 0.15);
+    }
+  }
+
   /* ===== 背景色工具类 ===== */
   .bg-glass-bg {
     background: var(--color-glass-bg);
